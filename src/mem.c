@@ -41,8 +41,30 @@ void mem_free(void *zone) {
 // mem_show
 //-------------------------------------------------------------
 void mem_show(void (*print)(void *, size_t, int free)) {
-    /* A COMPLETER */
-    return;
+	struct head * entete = get_memory_adr();
+	struct fb * libre = entete-> espace_libre;
+	struct bb * occupe = entete-> espace_occupe;
+
+	//Parcours des listes chainees, affichage dans l'ordre de la memoire
+	while(!(libre == NULL && occupe == NULL)){
+		if(libre == NULL){
+			print(occupe, occupe->taille, 0);
+			occupe = occupe->suivant;
+		}
+		else if(occupe == NULL){
+			print(libre, libre->taille, 1);
+			libre = libre->suivant;
+		}
+		else{  // cas de comparaisons des adresses
+			if((void *)occupe < (void *)libre){
+				print(occupe, occupe->taille, 0);
+				occupe = occupe->suivant;
+			}else{
+				print(libre, libre->taille, 1);
+				libre = libre->suivant;
+			}
+		}
+	}
 }
 
 //-------------------------------------------------------------
