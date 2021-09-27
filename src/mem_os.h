@@ -1,8 +1,6 @@
 #if !defined(mem_os_h)
 #define mem_os_h
 
-struct fb;
-
 /* -----------------------------------------------*/
 /* Interface de gestion de votre allocateur       */
 /* -----------------------------------------------*/
@@ -21,5 +19,21 @@ void mem_fit(mem_fit_function_t *);
 mem_fit_function_t mem_first_fit;
 mem_fit_function_t mem_worst_fit;
 mem_fit_function_t mem_best_fit;
+
+struct head{
+	mem_fit_function_t * fit;
+	struct fb * espace_libre;
+	struct bb * espace_occupe;
+};
+
+struct fb{
+	size_t taille;
+	struct fb * suivant;
+};
+
+struct bb{
+	size_t taille;
+	struct bb * suivant;
+};
 
 #endif /* mem_os_h */

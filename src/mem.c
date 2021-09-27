@@ -8,8 +8,16 @@
 // mem_init
 //-------------------------------------------------------------
 void mem_init() {
-    /* A COMPLETER */
-    return;
+
+	struct head * entete = get_memory_adr(); 
+	entete->fit = mem_first_fit; // initialisation de la fonction fit par le first fit
+	entete->espace_occupe = NULL; // chaine vide au debut
+
+	struct fb * adr_libre = get_memory_adr() + sizeof(struct head);
+	entete->espace_libre = adr_libre;
+	adr_libre->taille = get_memory_size() - sizeof(struct head) - sizeof(struct fb); //premier maillon avec le reste de la zone memoire libre
+	adr_libre->suivant = NULL;
+
 }
 
 //-------------------------------------------------------------
