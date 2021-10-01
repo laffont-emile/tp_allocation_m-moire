@@ -4,6 +4,8 @@
 #include "mem_os.h"
 #include <stdio.h>
 
+void fusion(struct fb * prec, struct fb * cc, struct fb * suiv);
+
 //-------------------------------------------------------------
 // mem_init
 //-------------------------------------------------------------
@@ -38,7 +40,7 @@ void *mem_alloc(size_t size) {
 		
 		//gestion espace restant entre taille_bloc et taille a alloué
 		size_t reste = taille_bloc - size;
-		if(reste <= sizeof(struct fb)){
+		if(reste <= sizeof(struct fb)){// ne pas accepter les bloc trop petit pour un maillon ou alors juste assez pour un maillon, malloc(0) ne passe pas
 			size = taille_bloc;
 		}
 		
@@ -107,8 +109,69 @@ void *mem_alloc(size_t size) {
 // mem_free
 //-------------------------------------------------------------
 void mem_free(void *zone) {
-    /* A COMPLETER */
-    return;
+	struct head * entete = get_memory_adr();
+	struct bb * tete_occupe = entete->tete_bloc_occupe;
+	struct bb * prec_o = NULL;
+	struct bb * suivant_o = NULL;
+	zone = zone - sizeof(struct bb);
+	
+	//placement sur l'adresse
+	while(tete_occupe != NULL && (void *)tete_occupe != (void *)zone ){
+		prec_o = tete_occupe;
+		tete_occupe = tete_occupe->suivant;
+	}
+	if(tete_occupe == NULL){
+		fprintf(stderr,"La zone adressé n'est pas occupe!!!");
+	}
+	else{
+		suivant_o = tete_occupe->suivant;
+	
+		//parcours de nos zones libres
+		struct fb * tete_libre = entete->tete_bloc_libre;
+		struct fb * prec_l = NULL;
+		struct fb * suivant_l = NULL;
+		while(tete_libre != NULL && (void *) tete_libre < zone ){
+			prec_l = tete_libre;
+			tete_libre = tete_libre->suivant;
+		}
+		if(tete_libre != NULL){
+			suivant_l = tete_libre;
+		}
+		
+		//remplacement de tete_occupe par une zone libre
+		struct fb * nouveau = (struct fb *) tete_occupe;
+		printf("%p   %p/n",(void *)((void *)tete_occupe - get_memory_adr()),(void *)((void *)nouveau- get_memory_adr()));
+		
+		if(prec_o != NULL){
+			prec_o->suivant = suivant_o;
+		}
+		else{
+			entete->tete_bloc_occupe = suivant_o;
+		}
+		
+		fusion(prec_l,nouveau,suivant_l);
+	}
+}
+
+void fusion(struct fb * prec, struct fb * cc, struct fb * suiv){
+	//4 cas distincts
+	struct head * entete = get_memory_adr();
+	if(prec == NULL && suiv == NULL){
+		entete->tete_bloc_libre = cc;
+	}
+	else if(prec == NULL){ //fusion cc et suiv
+		cc->suivant = suiv->suivant;
+		cc->taille = cc->taille + suiv->taille + sizeof(struct fb );
+		entete->tete_bloc_libre = cc;
+	}
+	else if(suiv == NULL){ // fusion prec et cc
+		prec->suivant = cc->suivant;
+		prec->taille = prec->taille + cc->taille + sizeof(struct fb );
+	}
+	else{// fusion prec, cc et suiv
+		prec->suivant = suiv->suivant;
+		prec->taille = prec->taille + cc->taille + suiv->taille + 2 * sizeof(struct fb );
+	}
 }
 
 //-------------------------------------------------------------
