@@ -10,11 +10,11 @@
 void mem_init() {
 
 	struct head * entete = get_memory_adr(); 
-	entete->fit = mem_first_fit; // initialisation de la fonction fit par le first fit
-	entete->espace_occupe = NULL; // chaine vide au debut
+	entete->fit = mem_worst_fit; // initialisation de la fonction fit par le first fit
+	entete->tete_bloc_occupe = NULL; // chaine vide au debut
 
 	struct fb * adr_libre = get_memory_adr() + sizeof(struct head);
-	entete->espace_libre = adr_libre;
+	entete->tete_bloc_libre = adr_libre;
 	adr_libre->taille = get_memory_size() - sizeof(struct head) - sizeof(struct fb); //premier maillon avec le reste de la zone memoire libre
 	adr_libre->suivant = NULL;
 
@@ -24,8 +24,83 @@ void mem_init() {
 // mem_alloc
 //-------------------------------------------------------------
 void *mem_alloc(size_t size) {
-    /* A COMPLETER */
-    return NULL;
+	struct head * entete = get_memory_adr();
+	mem_fit_function_t * strategie = entete->fit; //recuperation de la strategie d'allocation
+	
+	struct fb * adr_allocation = strategie(entete->tete_bloc_libre,size);
+	
+	if(adr_allocation == NULL){ // strategie d'allocation retourne null => fragmentation forte
+		return NULL;
+	}
+	else{
+		
+		size_t taille_bloc = adr_allocation->taille;
+		
+		//gestion espace restant entre taille_bloc et taille a alloué
+		size_t reste = taille_bloc - size;
+		if(reste <= sizeof(struct fb)){
+			size = taille_bloc;
+		}
+		
+		// creation du bb avec gestion des listes
+		struct fb * tete_libre = entete->tete_bloc_libre;
+		struct bb * tete_occupe = entete->tete_bloc_occupe;
+		
+		struct fb * prec_l = NULL;
+		struct fb * suivant_l = adr_allocation->suivant;
+		struct bb * prec_o = NULL;
+		struct bb * suivant_o = NULL;
+		
+		//parcours de nos sequence
+		
+		while(tete_libre != NULL && (void *)tete_libre < (void*) adr_allocation){ //trouver le bloc libre precedant
+			prec_l = tete_libre;
+			tete_libre = tete_libre->suivant;
+		}
+		
+		while(tete_occupe != NULL && (void *)tete_occupe < (void*)adr_allocation){ //trouver le bloc occupe precedant et suivant par rapport a adr_allocation car on va l'inserer au milieu
+			prec_o = tete_occupe;
+			tete_occupe = tete_occupe->suivant;
+		}
+		if(tete_occupe != NULL){suivant_o = tete_occupe;}
+		
+		//transformation du maillon du bloc alloue en bloc occupe
+		
+		struct bb * alloue = (struct bb *) adr_allocation;
+		//mise a jour de notre chaine des bloc alloues
+		alloue->taille = size;
+		alloue->suivant = suivant_o;
+		if(prec_o != NULL){
+			prec_o->suivant = alloue;
+		}else{
+			entete->tete_bloc_occupe = alloue;
+		}
+		//mise a jour de notre chaine des bloc libre
+		struct fb * nouveau = NULL;
+		if(size != taille_bloc){ //mise a jour si besoin d'un nouveau bloc libre qui est le reste du bloc 
+			nouveau = (struct fb *)((void *) adr_allocation + sizeof(struct bb) + size);
+			nouveau->taille = taille_bloc - size - sizeof(struct bb);
+			//printf("%p   %p/n",(void *)((void *)adr_allocation - get_memory_adr()),(void *)((void *)nouveau- get_memory_adr()));
+		}
+		if(prec_l != NULL){
+			if(nouveau != NULL){
+				prec_l->suivant = nouveau;
+				nouveau->suivant = suivant_l;
+			}else{
+				prec_l->suivant = suivant_l;
+			}
+		}else{
+			if(nouveau != NULL){
+				entete->tete_bloc_libre = nouveau;
+				nouveau->suivant = suivant_l;
+			}else{
+				entete->tete_bloc_libre = suivant_l;
+			}
+		}
+		
+		
+		return (void *) adr_allocation + sizeof(struct bb);
+	}
 }
 
 //-------------------------------------------------------------
@@ -42,25 +117,25 @@ void mem_free(void *zone) {
 //-------------------------------------------------------------
 void mem_show(void (*print)(void *, size_t, int free)) {
 	struct head * entete = get_memory_adr();
-	struct fb * libre = entete-> espace_libre;
-	struct bb * occupe = entete-> espace_occupe;
+	struct fb * libre = entete->tete_bloc_libre;
+	struct bb * occupe = entete->tete_bloc_occupe;
 
 	//Parcours des listes chainees, affichage dans l'ordre de la memoire
 	while(!(libre == NULL && occupe == NULL)){
 		if(libre == NULL){
-			print(occupe, occupe->taille, 0);
+			print((void *)((void *)occupe - get_memory_adr()), occupe->taille, 0);
 			occupe = occupe->suivant;
 		}
 		else if(occupe == NULL){
-			print(libre, libre->taille, 1);
+			print((void *)((void *) libre - get_memory_adr()), libre->taille, 1);
 			libre = libre->suivant;
 		}
 		else{  // cas de comparaisons des adresses
 			if((void *)occupe < (void *)libre){
-				print(occupe, occupe->taille, 0);
+				print((void *)((void *)occupe - get_memory_adr()), occupe->taille, 0);
 				occupe = occupe->suivant;
 			}else{
-				print(libre, libre->taille, 1);
+				print((void *)((void *) libre - get_memory_adr()), libre->taille, 1);
 				libre = libre->suivant;
 			}
 		}
@@ -71,24 +146,45 @@ void mem_show(void (*print)(void *, size_t, int free)) {
 // mem_fit
 //-------------------------------------------------------------
 void mem_fit(mem_fit_function_t *mff) {
-    /* A COMPLETER */
-    return;
+	struct head * entete = get_memory_adr(); 
+	mff = entete->fit;
 }
 
 //-------------------------------------------------------------
 // Stratégies d'allocation
 //-------------------------------------------------------------
 struct fb *mem_first_fit(struct fb *head, size_t size) {
-    /* A COMPLETER */
-    return NULL;
+    struct fb *cc = head;	
+    while(cc != NULL && cc->taille < size){
+    	cc = cc->suivant;
+    }
+    return cc;
 }
 //-------------------------------------------------------------
 struct fb *mem_best_fit(struct fb *head, size_t size) {
-    /* A COMPLETER */
-    return NULL;
+	size_t min = -1; 
+	struct fb *cc_min = NULL;
+	struct fb *cc = head;	
+	while(cc != NULL){
+		if( cc->taille >= size && (min == -1 || min > cc->taille)){
+			min = cc->taille;
+			cc_min = cc;
+		}
+    		cc = cc->suivant;
+	}
+	return cc_min;
 }
 //-------------------------------------------------------------
 struct fb *mem_worst_fit(struct fb *head, size_t size) {
-    /* A COMPLETER */
-    return NULL;
+	size_t max = -1; 
+	struct fb *cc_max = NULL;
+	struct fb *cc = head;	
+	while(cc != NULL){
+		if(cc->taille >= size && ( max == -1 || max < cc->taille ) ){
+			max = cc->taille;
+			cc_max = cc;
+		}
+    		cc = cc->suivant;
+	}
+	return cc_max;
 }

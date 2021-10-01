@@ -22,8 +22,8 @@ mem_fit_function_t mem_best_fit;
 
 struct head{
 	mem_fit_function_t * fit;
-	struct fb * espace_libre;
-	struct bb * espace_occupe;
+	struct fb * tete_bloc_libre;
+	struct bb * tete_bloc_occupe;
 };
 
 struct fb{
