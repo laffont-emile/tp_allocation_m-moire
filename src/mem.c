@@ -15,7 +15,7 @@ void mem_init() {
 	entete->fit = mem_worst_fit; // initialisation de la fonction fit par le first fit
 	entete->tete_bloc_occupe = NULL; // chaine vide au debut
 
-	struct fb * adr_libre = get_memory_adr() + sizeof(struct head);
+	struct fb * adr_libre = get_memory_adr() + get_taille_avec_alignement(sizeof(struct head)); //recuperation de l'adresse du premier maillon avec alignement
 	entete->tete_bloc_libre = adr_libre;
 	adr_libre->taille = get_memory_size() - sizeof(struct head) - sizeof(struct fb); //premier maillon avec le reste de la zone memoire libre
 	adr_libre->suivant = NULL;
@@ -26,6 +26,9 @@ void mem_init() {
 // mem_alloc
 //-------------------------------------------------------------
 void *mem_alloc(size_t size) {
+	
+	size = get_taille_avec_alignement(size); //taille a alloue avec alignement 
+
 	struct head * entete = get_memory_adr();
 	mem_fit_function_t * strategie = entete->fit; //recuperation de la strategie d'allocation
 	
@@ -40,7 +43,7 @@ void *mem_alloc(size_t size) {
 		
 		//gestion espace restant entre taille_bloc et taille a alloué
 		size_t reste = taille_bloc - size;
-		if(reste <= sizeof(struct fb)){// ne pas accepter les bloc trop petit pour un maillon ou alors juste assez pour un maillon, malloc(0) ne passe pas
+		if(reste <= get_taille_avec_alignement(sizeof(struct fb))){// ne pas accepter les bloc trop petit pour un maillon ou alors juste assez pour un maillon, malloc(0) ne passe pas
 			size = taille_bloc;
 		}
 		
@@ -80,8 +83,8 @@ void *mem_alloc(size_t size) {
 		//mise a jour de notre chaine des bloc libre
 		struct fb * nouveau = NULL;
 		if(size != taille_bloc){ //mise a jour si besoin d'un nouveau bloc libre qui est le reste du bloc 
-			nouveau = (struct fb *)((void *) adr_allocation + sizeof(struct bb) + size);
-			nouveau->taille = taille_bloc - size - sizeof(struct bb);
+			nouveau = (struct fb *)((void *) adr_allocation + get_taille_avec_alignement(sizeof(struct bb)) + size);
+			nouveau->taille = taille_bloc - size - get_taille_avec_alignement(sizeof(struct bb));
 			//printf("%p   %p/n",(void *)((void *)adr_allocation - get_memory_adr()),(void *)((void *)nouveau- get_memory_adr()));
 		}
 		if(prec_l != NULL){
@@ -101,7 +104,7 @@ void *mem_alloc(size_t size) {
 		}
 		
 		
-		return (void *) adr_allocation + sizeof(struct bb);
+		return (void *) adr_allocation + get_taille_avec_alignement(sizeof(struct bb));
 	}
 }
 
@@ -113,7 +116,7 @@ void mem_free(void *zone) {
 	struct bb * tete_occupe = entete->tete_bloc_occupe;
 	struct bb * prec_o = NULL;
 	struct bb * suivant_o = NULL;
-	zone = zone - sizeof(struct bb);
+	zone = zone - get_taille_avec_alignement(sizeof(struct bb));
 	
 	//placement sur l'adresse
 	while(tete_occupe != NULL && (void *)tete_occupe != (void *)zone ){
@@ -163,8 +166,8 @@ void mem_free(void *zone) {
 
 void fusion(struct fb * prec, struct fb * cc, struct fb * suiv){
 	if(prec == NULL){
-		if(suiv != NULL && (void *) cc + sizeof(struct fb) + cc->taille == (void *) suiv){ // les adresses se suivent => fusion
-			cc->taille = cc->taille + suiv->taille + sizeof(struct fb);
+		if(suiv != NULL && (void *) cc + get_taille_avec_alignement(sizeof(struct fb)) + cc->taille == (void *) suiv){ // les adresses se suivent => fusion
+			cc->taille = cc->taille + suiv->taille + get_taille_avec_alignement(sizeof(struct fb));
 			cc->suivant = suiv->suivant;
 		}
 	}
@@ -172,8 +175,8 @@ void fusion(struct fb * prec, struct fb * cc, struct fb * suiv){
 		struct fb * courant = prec;
 		struct fb * suivant = cc;
 		while(suivant != NULL){ // 2 iterations au max
-			if((void *) courant + sizeof(struct fb) + courant->taille == (void *) suivant){//fusion
-				courant->taille = courant->taille + suivant->taille + sizeof(struct fb);
+			if((void *) courant + get_taille_avec_alignement(sizeof(struct fb)) + courant->taille == (void *) suivant){//fusion
+				courant->taille = courant->taille + suivant->taille + get_taille_avec_alignement(sizeof(struct fb));
 				courant->suivant = suivant->suivant;
 				suivant = courant->suivant;
 			}
