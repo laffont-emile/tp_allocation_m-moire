@@ -4,7 +4,7 @@
 #include "mem_os.h"
 #include <stdio.h>
 
-void fusion(struct fb * prec, struct fb * cc, struct fb * suiv, struct bb * prec_o, struct bb * suiv_o);
+void fusion(struct fb * prec, struct fb * cc, struct fb * suiv);
 
 //-------------------------------------------------------------
 // mem_init
@@ -142,10 +142,6 @@ void mem_free(void *zone) {
 		struct fb * nouveau = (struct fb *) tete_occupe;
 		//printf("%p   %p/n",(void *)((void *)tete_occupe - get_memory_adr()),(void *)((void *)nouveau- get_memory_adr()));
 		
-
-		//appel de fusion
-		fusion(prec_l,nouveau,suivant_l,prec_o,suivant_o);
-		
 		//mise a jour des blocs occupé
 		if(prec_o != NULL){
 			prec_o->suivant = suivant_o;
@@ -153,52 +149,38 @@ void mem_free(void *zone) {
 		else{
 			entete->tete_bloc_occupe = suivant_o;
 		}
+
+		if(prec_l == NULL){
+			entete->tete_bloc_libre = nouveau;
+		}else{
+			prec_l->suivant = nouveau;
+		}
+		nouveau->suivant = suivant_l;
+		//appel a fusion
+		fusion(prec_l,nouveau,suivant_l);
 	}
 }
 
-void fusion(struct fb * prec, struct fb * cc, struct fb * suiv, struct bb * prec_o, struct bb * suiv_o){
-	//4 cas distincts
-	struct head * entete = get_memory_adr();
-	if(prec == NULL && suiv == NULL){
-		cc->suivant = NULL;
-		entete->tete_bloc_libre = cc;
-	}
-	else if(prec == NULL){ //fusion cc et suiv
-		if((void *)cc < (void *)suiv_o && (void *)suiv_o < (void *)suiv){
-			cc->suivant = suiv;
-			entete->tete_bloc_libre = cc;
-		}
-		else{
-			cc->suivant = suiv->suivant;
+void fusion(struct fb * prec, struct fb * cc, struct fb * suiv){
+	if(prec == NULL){
+		if(suiv != NULL && (void *) cc + sizeof(struct fb) + cc->taille == (void *) suiv){ // les adresses se suivent => fusion
 			cc->taille = cc->taille + suiv->taille + sizeof(struct fb);
-			entete->tete_bloc_libre = cc;
-		}
-	}
-	else if(suiv == NULL){ // fusion prec et cc
-		if((void *)prec <(void *) prec_o && (void *)prec_o < (void *)cc){
-			prec->suivant = cc;
-		}
-		else{
-			prec->suivant = cc->suivant;
-			prec->taille = prec->taille + cc->taille + sizeof(struct fb );
-		}
-	}
-	else{// fusion prec, cc et suiv
-		if((void *)cc < (void *)suiv_o && (void *)suiv_o < (void *)suiv  &&  (void *)prec <(void *) prec_o && (void *)prec_o < (void *)cc){
-			prec->suivant = cc;
-			cc->suivant = suiv;
-		}
-		else if((void *)cc < (void *)suiv_o && (void *)suiv_o < (void *)suiv){//fusion de prec et cc
-			prec->suivant = cc->suivant;
-			prec->taille = prec->taille + cc->taille + sizeof(struct fb );
-		}
-		else if((void *)prec <(void *) prec_o && (void *)prec_o < (void *)cc){ //fusion de cc et suiv
 			cc->suivant = suiv->suivant;
-			cc->taille = cc->taille + suiv->taille + sizeof(struct fb);
 		}
-		else{
-			prec->suivant = suiv->suivant;
-			prec->taille = prec->taille + cc->taille + suiv->taille + 2 * sizeof(struct fb );
+	}
+	else{
+		struct fb * courant = prec;
+		struct fb * suivant = cc;
+		while(suivant != NULL){ // 2 iterations au max
+			if((void *) courant + sizeof(struct fb) + courant->taille == (void *) suivant){//fusion
+				courant->taille = courant->taille + suivant->taille + sizeof(struct fb);
+				courant->suivant = suivant->suivant;
+				suivant = courant->suivant;
+			}
+			else{
+				courant = suivant;
+				suivant = suivant->suivant;
+			}
 		}
 	}
 }
