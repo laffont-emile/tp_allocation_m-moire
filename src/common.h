@@ -12,4 +12,6 @@ void *get_memory_adr(void);
 size_t get_memory_size(void);
 size_t get_taille_avec_alignement(size_t n);
 
+size_t get_taille_avec_alignement(size_t n);
+
 #endif

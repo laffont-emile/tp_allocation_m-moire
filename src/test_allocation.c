@@ -53,8 +53,6 @@ void test_allocation_aleatoire(){
     	}
 	assert(i == MAX_ALLOC);
 	
-	mem_init();
-	i = 1;
 	debug("alocation multiple de taille differente\n");
 	while (i < MAX_ALLOC && (allocs[i] = mem_alloc(i)) != NULL) {
         	i++;
