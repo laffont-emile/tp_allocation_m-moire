@@ -26,86 +26,88 @@ void mem_init() {
 // mem_alloc
 //-------------------------------------------------------------
 void *mem_alloc(size_t size) {
-	
-	size = get_taille_avec_alignement(size); //taille a alloue avec alignement 
+	if(size > 0){
+		size = get_taille_avec_alignement(size); //taille a alloue avec alignement 
 
-	struct head * entete = get_memory_adr();
-	mem_fit_function_t * strategie = entete->fit; //recuperation de la strategie d'allocation
-	
-	struct fb * adr_allocation = strategie(entete->tete_bloc_libre,size);
-	
-	if(adr_allocation == NULL){ // strategie d'allocation retourne null => fragmentation forte
-		return NULL;
-	}
-	else{
+		struct head * entete = get_memory_adr();
+		mem_fit_function_t * strategie = entete->fit; //recuperation de la strategie d'allocation
 		
-		size_t taille_bloc = adr_allocation->taille;
+		struct fb * adr_allocation = strategie(entete->tete_bloc_libre,size);
 		
-		//gestion espace restant entre taille_bloc et taille a alloué
-		size_t reste = taille_bloc - size;
-		if(reste <= get_taille_avec_alignement(sizeof(struct fb))){// ne pas accepter les bloc trop petit pour un maillon ou alors juste assez pour un maillon, malloc(0) ne passe pas
-			size = taille_bloc;
+		if(adr_allocation == NULL){ // strategie d'allocation retourne null => fragmentation forte
+			return NULL;
 		}
-		
-		// creation du bb avec gestion des listes
-		struct fb * tete_libre = entete->tete_bloc_libre;
-		struct bb * tete_occupe = entete->tete_bloc_occupe;
-		
-		struct fb * prec_l = NULL;
-		struct fb * suivant_l = adr_allocation->suivant;
-		struct bb * prec_o = NULL;
-		struct bb * suivant_o = NULL;
-		
-		//parcours de nos sequence
-		
-		while(tete_libre != NULL && (void *)tete_libre < (void*) adr_allocation){ //trouver le bloc libre precedant
-			prec_l = tete_libre;
-			tete_libre = tete_libre->suivant;
-		}
-		
-		while(tete_occupe != NULL && (void *)tete_occupe < (void*)adr_allocation){ //trouver le bloc occupe precedant et suivant par rapport a adr_allocation car on va l'inserer au milieu
-			prec_o = tete_occupe;
-			tete_occupe = tete_occupe->suivant;
-		}
-		if(tete_occupe != NULL){suivant_o = tete_occupe;}
-		
-		//transformation du maillon du bloc alloue en bloc occupe
-		
-		struct bb * alloue = (struct bb *) adr_allocation;
-		//mise a jour de notre chaine des bloc alloues
-		alloue->taille = size;
-		alloue->suivant = suivant_o;
-		if(prec_o != NULL){
-			prec_o->suivant = alloue;
-		}else{
-			entete->tete_bloc_occupe = alloue;
-		}
-		//mise a jour de notre chaine des bloc libre
-		struct fb * nouveau = NULL;
-		if(size != taille_bloc){ //mise a jour si besoin d'un nouveau bloc libre qui est le reste du bloc 
-			nouveau = (struct fb *)((void *) adr_allocation + get_taille_avec_alignement(sizeof(struct bb)) + size);
-			nouveau->taille = taille_bloc - size - get_taille_avec_alignement(sizeof(struct bb));
-			//printf("%p   %p/n",(void *)((void *)adr_allocation - get_memory_adr()),(void *)((void *)nouveau- get_memory_adr()));
-		}
-		if(prec_l != NULL){
-			if(nouveau != NULL){
-				prec_l->suivant = nouveau;
-				nouveau->suivant = suivant_l;
-			}else{
-				prec_l->suivant = suivant_l;
+		else{
+			
+			size_t taille_bloc = adr_allocation->taille;
+			
+			//gestion espace restant entre taille_bloc et taille a alloué
+			size_t reste = taille_bloc - size;
+			if(reste <= get_taille_avec_alignement(sizeof(struct fb))){// ne pas accepter les bloc trop petit pour un maillon ou alors juste assez pour un maillon, malloc(0) ne passe pas
+				size = taille_bloc;
 			}
-		}else{
-			if(nouveau != NULL){
-				entete->tete_bloc_libre = nouveau;
-				nouveau->suivant = suivant_l;
-			}else{
-				entete->tete_bloc_libre = suivant_l;
+			
+			// creation du bb avec gestion des listes
+			struct fb * tete_libre = entete->tete_bloc_libre;
+			struct bb * tete_occupe = entete->tete_bloc_occupe;
+			
+			struct fb * prec_l = NULL;
+			struct fb * suivant_l = adr_allocation->suivant;
+			struct bb * prec_o = NULL;
+			struct bb * suivant_o = NULL;
+			
+			//parcours de nos sequence
+			
+			while(tete_libre != NULL && (void *)tete_libre < (void*) adr_allocation){ //trouver le bloc libre precedant
+				prec_l = tete_libre;
+				tete_libre = tete_libre->suivant;
 			}
+			
+			while(tete_occupe != NULL && (void *)tete_occupe < (void*)adr_allocation){ //trouver le bloc occupe precedant et suivant par rapport a adr_allocation car on va l'inserer au milieu
+				prec_o = tete_occupe;
+				tete_occupe = tete_occupe->suivant;
+			}
+			if(tete_occupe != NULL){suivant_o = tete_occupe;}
+			
+			//transformation du maillon du bloc alloue en bloc occupe
+			
+			struct bb * alloue = (struct bb *) adr_allocation;
+			//mise a jour de notre chaine des bloc alloues
+			alloue->taille = size;
+			alloue->suivant = suivant_o;
+			if(prec_o != NULL){
+				prec_o->suivant = alloue;
+			}else{
+				entete->tete_bloc_occupe = alloue;
+			}
+			//mise a jour de notre chaine des bloc libre
+			struct fb * nouveau = NULL;
+			if(size != taille_bloc){ //mise a jour si besoin d'un nouveau bloc libre qui est le reste du bloc 
+				nouveau = (struct fb *)((void *) adr_allocation + get_taille_avec_alignement(sizeof(struct bb)) + size);
+				nouveau->taille = taille_bloc - size - get_taille_avec_alignement(sizeof(struct bb));
+				//printf("%p   %p/n",(void *)((void *)adr_allocation - get_memory_adr()),(void *)((void *)nouveau- get_memory_adr()));
+			}
+			if(prec_l != NULL){
+				if(nouveau != NULL){
+					prec_l->suivant = nouveau;
+					nouveau->suivant = suivant_l;
+				}else{
+					prec_l->suivant = suivant_l;
+				}
+			}else{
+				if(nouveau != NULL){
+					entete->tete_bloc_libre = nouveau;
+					nouveau->suivant = suivant_l;
+				}else{
+					entete->tete_bloc_libre = suivant_l;
+				}
+			}
+			
+			
+			return (void *) adr_allocation + get_taille_avec_alignement(sizeof(struct bb));
 		}
-		
-		
-		return (void *) adr_allocation + get_taille_avec_alignement(sizeof(struct bb));
 	}
+	return NULL;
 }
 
 //-------------------------------------------------------------
