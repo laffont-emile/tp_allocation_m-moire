@@ -6,12 +6,12 @@ CC=gcc
 # on Debian/Ubuntu)
 #HOST32= -m32
 
-CFLAGS= $(HOST32) -Wall -Werror -std=c99 -g -DMEMORY_SIZE=80000 -ALIGNEMENT=4
+CFLAGS= $(HOST32) -Wall -Werror -std=c99 -g -DMEMORY_SIZE=50000 -ALIGNEMENT=4
 CFLAGS+= -DDEBUG
 LDFLAGS= $(HOST32)
 INCLUDE=.
 
-TESTS+=test_init test_base test_cheese test_fusion 
+TESTS+=test_init test_base test_cheese test_fusion
 PROGRAMS=memshell
 
 .PHONY: clean all test test_ls

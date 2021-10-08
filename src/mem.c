@@ -12,7 +12,7 @@ void fusion(struct fb * prec, struct fb * cc, struct fb * suiv);
 void mem_init() {
 
 	struct head * entete = get_memory_adr(); 
-	entete->fit = mem_worst_fit; // initialisation de la fonction fit par le first fit
+	entete->fit = mem_first_fit; // initialisation de la fonction fit par le first fit
 	entete->tete_bloc_occupe = NULL; // chaine vide au debut
 
 	struct fb * adr_libre = get_memory_adr() + get_taille_avec_alignement(sizeof(struct head)); //recuperation de l'adresse du premier maillon avec alignement
@@ -164,6 +164,9 @@ void mem_free(void *zone) {
 	}
 }
 
+
+//pre-condition cc (courant ) non NULL
+//fusione si besoin prec,cc
 void fusion(struct fb * prec, struct fb * cc, struct fb * suiv){
 	if(prec == NULL){
 		if(suiv != NULL && (void *) cc + get_taille_avec_alignement(sizeof(struct fb)) + cc->taille == (void *) suiv){ // les adresses se suivent => fusion
@@ -224,7 +227,7 @@ void mem_show(void (*print)(void *, size_t, int free)) {
 //-------------------------------------------------------------
 void mem_fit(mem_fit_function_t *mff) {
 	struct head * entete = get_memory_adr(); 
-	mff = entete->fit;
+	entete->fit = mff;
 }
 
 //-------------------------------------------------------------
