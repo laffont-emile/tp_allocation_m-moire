@@ -17,6 +17,7 @@ void aide() {
     fprintf(
         stderr,
         "f n       :   librer le bloc alloue lors de la n-ieme allocation\n");
+    fprintf(stderr, "r n t     :   realloc de la n-ieme allocation et de la nouvelle taille t\n");
     fprintf(stderr, "i         :   afficher la liste des emplacements memoire "
                     "inoccupes\n");
     fprintf(stderr, "o         :   afficher la liste des emplacements memoire "
@@ -76,6 +77,18 @@ int main(int argc, char **argv) {
         case 'l':
             scanf("%d", &offset);
             mem_free(get_memory_adr() + offset);
+            printf("Memoire liberee\n");
+            break;
+        case 'r':
+            scanf("%d", &offset);
+            scanf("%d", &taille);
+            ptr = mem_realloc(allocations[offset - 1],taille);
+            if (ptr == NULL)
+                printf("Echec de reallocation\n");
+            else{
+                printf("Memoire rallouee en %d\n", (int)(ptr - get_memory_adr()));
+                allocations[offset - 1] = ptr;
+            }
             printf("Memoire liberee\n");
             break;
         case 'f':

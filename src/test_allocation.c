@@ -60,6 +60,28 @@ void test_allocation_aleatoire(){
 	assert(i == MAX_ALLOC);
 }
 
+void test_cas_limite(){
+  mem_init();
+	debug("test cas limite\n");
+  
+  mem_alloc(50);
+  void * b = mem_alloc(50);
+  mem_alloc(50);
+  struct fb * libre = (struct fb *) (b - get_taille_avec_alignement(sizeof(struct fb))) ;
+  size_t taille = libre->taille;
+  mem_free(b);
+  b = mem_alloc(taille - get_taille_avec_alignement(sizeof(struct fb)));
+  assert(b != NULL);
+  struct bb * occupe = (struct bb *) b;
+  assert(occupe->taille = taille);
+  
+  mem_free(b);
+  b = mem_alloc(taille - get_taille_avec_alignement(sizeof(struct fb)) + get_taille_avec_alignement(1));
+  assert(b != NULL);
+  occupe = (struct bb *) b;
+  assert(occupe->taille = taille);
+}
+
 
 
 int main(int argc, char *argv[]) {
@@ -67,6 +89,7 @@ int main(int argc, char *argv[]) {
 	test_allocation_basique();
 	test_memoire_allocation_plein();
 	test_allocation_aleatoire();
+  test_cas_limite();
 	debug("test OK\n");
 
 }

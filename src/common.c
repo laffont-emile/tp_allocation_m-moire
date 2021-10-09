@@ -22,7 +22,7 @@ size_t get_taille_avec_alignement(size_t n){
 	if(n % ALIGNEMENT == 0){
 		return n;
 	}else {
-		return n + (n % ALIGNEMENT);
+		return n + (ALIGNEMENT - n % ALIGNEMENT);
 	}
 	return n;
 }

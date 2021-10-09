@@ -8,7 +8,7 @@
 void *mem_alloc(size_t);
 void mem_free(void *);
 size_t mem_get_size(void *);
-void *mem_realloc(void *zone);
+void *mem_realloc(void *zone, size_t size);
 
 /* Itérateur sur le contenu de l'allocateur */
 void mem_show(void (*print)(void *, size_t, int free));
