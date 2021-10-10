@@ -81,6 +81,16 @@ void test_cas_limite(){
   occupe = (struct bb *) b;
   assert(occupe->taille = taille);
 }
+void afficher_zone(void *adresse, size_t taille, int free) {
+    printf("Zone %s, Adresse : %lu, Taille : %lu\n", free ? "libre" : "occupee",
+           (unsigned long)adresse, (unsigned long)taille);
+}
+void test_alllocation_max_taille(){
+  mem_init();
+  debug("test allocation d'un seul bloc qui prend toute la memoire\n");
+  void * a = mem_alloc(get_memory_size() - get_taille_avec_alignement(sizeof(struct bb)) - get_taille_avec_alignement(sizeof(struct head)));
+  assert(a != NULL);
+}
 
 
 
@@ -90,6 +100,7 @@ int main(int argc, char *argv[]) {
 	test_memoire_allocation_plein();
 	test_allocation_aleatoire();
   test_cas_limite();
+  test_alllocation_max_taille();
 	debug("test OK\n");
 
 }

@@ -83,13 +83,9 @@ int main(int argc, char **argv) {
             scanf("%d", &offset);
             scanf("%d", &taille);
             ptr = mem_realloc(allocations[offset - 1],taille);
-            if (ptr == NULL)
-                printf("Echec de reallocation\n");
-            else{
-                printf("Memoire rallouee en %d\n", (int)(ptr - get_memory_adr()));
-                allocations[offset - 1] = ptr;
+            if (ptr != NULL){
+              allocations[offset - 1] = ptr;
             }
-            printf("Memoire liberee\n");
             break;
         case 'f':
             scanf("%d", &offset);

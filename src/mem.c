@@ -1,4 +1,4 @@
-
+#include <assert.h>
 #include "mem.h"
 #include "common.h"
 #include "mem_os.h"
@@ -274,22 +274,29 @@ struct fb *mem_worst_fit(struct fb *head, size_t size) {
 
 
 
-//------------------------------------------------------------------------------
-//----------------------------------Realloc-------------------------------------
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------Realloc-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 
 //zone non NULL, zone pointe sur structure de controle bb
 size_t mem_get_size(void *zone) {
-	struct bb * tete = zone;
+	struct bb * tete = (struct bb *) zone;
 	size_t taille = tete->taille;
-	
+ 
 	if(tete->suivant == NULL || 
-      (void *) tete + taille + get_taille_avec_alignement(sizeof(struct bb)) !=  (void *) tete->suivant){ //cas ou la zone suivante est un bloc libre
-		struct fb * tete_libre = (struct fb *)(tete + taille);
-		taille = taille + tete_libre->taille + get_taille_avec_alignement(sizeof(struct fb));
+      ((void *) tete + taille + get_taille_avec_alignement(sizeof(struct bb))) !=  (void *) tete->suivant){ //cas ou la zone suivante est un bloc libre
+      if(((void *) tete + taille + get_taille_avec_alignement(sizeof(struct bb))) != (get_memory_adr() + get_memory_size() )){ // cas avoir aucun bloc libre car bloc oocupe est a la fin de la memoire
+    		struct fb * tete_libre = (struct fb *)((void *)tete + tete->taille + get_taille_avec_alignement(sizeof(struct bb)));
+    		taille = taille + tete_libre->taille + get_taille_avec_alignement(sizeof(struct fb));
+        return taille;
+      }
+      return -1;
 	}
-	return taille;
+  else{
+    return -1;
+  }	
 }
 
 void insertion_bloc_libre(struct fb * nouveau);
@@ -322,19 +329,19 @@ void *mem_realloc(void *zone, size_t size){
   		  return NULL;
   		}
   		else if(size == 0){//free
-  		  mem_free(bloc_occupe);
+  		  mem_free(zone);
           return NULL;
   		}
-      else if(size == bloc_occupe->taille){ //rien a faire
+      else if((int) size == (int) bloc_occupe->taille){ //rien a faire
         return zone;
       }
-      else if(size < bloc_occupe->taille){ // racourcir
+      else if((int) size < (int) bloc_occupe->taille){ // racourcir
         size_t dif_taille = bloc_occupe->taille - size;
         if(dif_taille <= get_taille_avec_alignement(sizeof(struct fb))){// pas assez de place pour un fb donc on arrondi => on fait rien
           return zone;
         }
         else{
-          struct fb * nouveau = (struct fb*) (zone + bloc_occupe->taille); //mise a jour du nouveau bloc libre
+          struct fb * nouveau = (struct fb*) (zone + size); //mise a jour du nouveau bloc libre
           nouveau->taille = dif_taille - get_taille_avec_alignement(sizeof(struct fb));
           bloc_occupe->taille = size;
           insertion_bloc_libre(nouveau);
@@ -342,34 +349,38 @@ void *mem_realloc(void *zone, size_t size){
         }
       }
       else{ //agrandir
-        size_t max_taille = mem_get_size(adr);
-        if(max_taille >= size){ //il y a un bloc libre apres et assez grand 
+        size_t max_taille = mem_get_size((void *)adr);
+        
+        if((int) max_taille >= (int) size){ //il y a un bloc libre apres et assez grand 
           size_t dif_taille = max_taille - size;
-          struct fb * bloc_libre = (struct fb *) bloc_occupe + get_taille_avec_alignement(sizeof(struct bb)) + bloc_occupe->taille;
+          struct fb * bloc_libre = (struct fb *) ((void *) bloc_occupe + get_taille_avec_alignement(sizeof(struct bb)) + bloc_occupe->taille);
           if(dif_taille <= get_taille_avec_alignement(sizeof(struct fb))){// pas assez de place pour un fb donc on arrondi => supprimer maillon libre
             bloc_occupe->taille = max_taille;
             suppression_bloc_libre(bloc_libre);
           }
           else{//decaler le bloc libre
-            bloc_occupe->taille = size;
-            struct fb * nouveau = (struct fb *) bloc_occupe + get_taille_avec_alignement(sizeof(struct bb)) + bloc_occupe->taille;
+            struct fb * nouveau = (struct fb *) ((void *)bloc_occupe + get_taille_avec_alignement(sizeof(struct bb)) + bloc_occupe->taille);
             nouveau->taille = max_taille - size - get_taille_avec_alignement(sizeof(struct fb));
             nouveau->suivant = bloc_libre->suivant;
             remplacer_bloc_libre(bloc_libre,nouveau);//remplacer le suivant du precedant bloc libre
+            bloc_occupe->taille = size;
           }
           return zone;
         }
+        else{
         
-        //bloc pas assez grand => trouver un autre endroit dans la memoire
-        struct bb * nouveau = (struct bb *) mem_alloc(size); // test allocation de size
-
-        if(nouveau == NULL){//on ne peut pas agrandir
-          return NULL;
-        }
-        else{//maintenant copie de l'ancien bloc vers le nouveau puis liberation de l'ancien bloc
-          copie(bloc_occupe,nouveau);
-          free(bloc_occupe);
-          return nouveau;
+          //bloc pas assez grand => trouver un autre endroit dans la memoire
+          void * nouvelle_adr = mem_alloc(size); // test allocation de size
+  
+          if(nouvelle_adr == NULL){//on ne peut pas agrandir
+            return NULL;
+          }
+          else{//maintenant copie de l'ancien bloc vers le nouveau puis liberation de l'ancien bloc
+            struct bb * nouveau = (struct bb *) (nouvelle_adr - get_taille_avec_alignement(sizeof(struct bb)));
+            copie(bloc_occupe,nouveau);
+            mem_free(zone);
+            return nouvelle_adr;
+          }
         }
       }
     }
@@ -402,6 +413,7 @@ void insertion_bloc_libre(struct fb * nouveau){
     prec->suivant = nouveau;
     nouveau->suivant = cc;
   }
+  fusion(prec,nouveau,nouveau->suivant);
 }
 
 //supprime nouveau de la chaine des blocs libre, nouveau est dans la chaine 
@@ -443,10 +455,10 @@ void remplacer_bloc_libre(struct fb * ancien ,struct fb * nouveau){
 //fonction utilisé par realloc, ancien et nouveau deux bloc alloué. nouveau est plus grand.
 //-> ancien va etre copier au debut de nouveau
 void copie(struct bb * ancien ,struct bb * nouveau){
-  char *a = (char *) ancien + get_taille_avec_alignement(sizeof(struct bb)); 
-  char *n = (char *) nouveau + get_taille_avec_alignement(sizeof(struct bb)); 
+  char *a = (char *) ((void *)ancien + get_taille_avec_alignement(sizeof(struct bb))); 
+  char *n = (char *) ((void *)nouveau + get_taille_avec_alignement(sizeof(struct bb))); 
   
-  for(int i = 0; i < ancien->taille; i++){
+  for(int i = 0; i < (int)ancien->taille; i++){
     *n = *a;
     n++;
     a++;
